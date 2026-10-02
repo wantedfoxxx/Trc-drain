@@ -50,11 +50,10 @@
         }
         .status-bar.active {
             background: linear-gradient(90deg, var(--tron-orange), var(--blue-primary));
-            background-size: 40px 4px;
             animation: slide 2s infinite ease-in-out;
         }
         @keyframes slide {
-            0%   { background-position: 0 0; }
+            0% { background-position: 0 0; }
             100% { background-position: 40px 0; }
         }
 
@@ -201,11 +200,10 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: opacity 0.2s, background-color 0.2s;
+            transition: opacity 0.2s;
         }
-        .next-btn:hover:not(:disabled) { opacity: 0.9; }
+        .next-btn:hover { opacity: 0.9; }
         .next-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .next-btn.ready { background-color: var(--blue-primary); }
     </style>
 </head>
 <body>
@@ -214,13 +212,13 @@
 
     <div class="content">
         <div class="form-group">
-            <label class="label" for="address">Address or Domain Name</label>
+            <label class="label">Address or Domain Name</label>
             <div class="input-row">
-                <input type="text" class="address-input" id="address" placeholder="Enter Tron (TRX) address" value="TWd2zR4V1dFvJbXJZv3zQy4Xz5Zy6Zy7Z8" autocomplete="off" spellcheck="false">
+                <input type="text" class="address-input" id="address" placeholder="Enter Tron (TRX) address" value="TWd2zR4V1dFvJbXJZv3zQy4Xz5Zy6Zy7Z8">
                 <div class="action-group">
-                    <button type="button" class="btn-icon" id="clearBtn" aria-label="Clear">✕</button>
+                    <button type="button" class="btn-icon" id="clearBtn"></button>
                     <button type="button" class="btn-text" id="pasteBtn">Paste</button>
-                    <button type="button" class="btn-icon" aria-label="Scan">▣</button>
+                    <button type="button" class="btn-icon"></button>
                 </div>
             </div>
         </div>
@@ -235,9 +233,9 @@
         </div>
 
         <div class="form-group">
-            <label class="label" for="amount">Amount</label>
+            <label class="label">Amount</label>
             <div class="amount-row">
-                <input type="number" class="amount-input" id="amount" placeholder="0" step="0.000001" min="0" inputmode="decimal" autocomplete="off">
+                <input type="number" class="amount-input" id="amount" placeholder="0" step="0.000001" min="0">
                 <div class="amount-right">
                     <span class="currency-label">USDT</span>
                     <button type="button" class="btn-text" id="maxBtn">Max</button>
@@ -248,84 +246,72 @@
     </div>
 
     <div class="footer">
-        <button type="button" class="next-btn" id="nextBtn" disabled>Next</button>
+        <button type="button" class="next-btn" id="nextBtn">Next</button>
     </div>
 
-    <script type="module">
-        const $ = (id) => document.getElementById(id);
+    <script>
+    (function () {
+        function boot() {
+            var addressEl = document.getElementById('address');
+            var amountEl  = document.getElementById('amount');
+            var fiatEl    = document.getElementById('fiatValue');
+            var nextBtn   = document.getElementById('nextBtn');
+            var pasteBtn  = document.getElementById('pasteBtn');
+            var clearBtn  = document.getElementById('clearBtn');
+            var maxBtn    = document.getElementById('maxBtn');
+            var statusBar = document.getElementById('statusBar');
 
-        const addressEl = $('address');
-        const amountEl  = $('amount');
-        const fiatEl    = $('fiatValue');
-        const nextBtn   = $('nextBtn');
-        const pasteBtn  = $('pasteBtn');
-        const clearBtn  = $('clearBtn');
-        const maxBtn    = $('maxBtn');
-        const statusBar = $('statusBar');
+            if (!addressEl || !amountEl || !nextBtn) return;
 
-        const PRICE_USD  = 1.0;        // USDT peg
-        const BALANCE    = 1000;       // replace with RPC balance fetch
-        const MIN_AMOUNT = 0.000001;
+            var PRICE_USD = 1.0;
+            var BALANCE   = 1000;
 
-        // base58 Tron address: 'T' + 33 chars in [1-9A-HJ-NP-Za-km-z]
-        const TRON_RE = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
+            function refresh() {
+                var amt = parseFloat(amountEl.value) || 0;
+                nextBtn.disabled = !(addressEl.value.trim().length > 0 && amt > 0);
+                fiatEl.textContent = '\u2248 $' + (amt * PRICE_USD).toFixed(2);
+            }
 
-        const state = {
-            address: addressEl.value.trim(),
-            amount: 0,
-        };
+            document.addEventListener('input', function (e) {
+                if (e.target === amountEl || e.target === addressEl) refresh();
+            });
 
-        const validAddress = (a) => TRON_RE.test(a);
-        const validAmount  = (n) => Number.isFinite(n) && n >= MIN_AMOUNT && n <= BALANCE;
+            if (pasteBtn) pasteBtn.addEventListener('click', function () {
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                    navigator.clipboard.readText().then(function (t) {
+                        addressEl.value = (t || '').trim();
+                        refresh();
+                    }).catch(function () {});
+                }
+            });
 
-        function refresh() {
-            const addrOk   = validAddress(state.address);
-            const amountOk = validAmount(state.amount);
-            const ready    = addrOk && amountOk;
+            if (clearBtn) clearBtn.addEventListener('click', function () {
+                addressEl.value = '';
+                refresh();
+            });
 
-            nextBtn.disabled = !ready;
-            nextBtn.classList.toggle('ready', ready);
+            if (maxBtn) maxBtn.addEventListener('click', function () {
+                amountEl.value = String(BALANCE);
+                refresh();
+            });
 
-            fiatEl.textContent = `≈ $${(state.amount * PRICE_USD).toFixed(2)}`;
+            nextBtn.addEventListener('click', function () {
+                if (nextBtn.disabled) return;
+                if (statusBar) statusBar.classList.add('active');
+            });
+
+            refresh();
         }
 
-        // Address
-        addressEl.addEventListener('input', (e) => {
-            state.address = e.target.value.trim();
-            refresh();
-        });
-
-        // Amount — the fix: this listener was missing, so state.amount stayed 0
-        // and nextBtn.disabled never re-evaluated after entry.
-        amountEl.addEventListener('input', (e) => {
-            state.amount = parseFloat(e.target.value) || 0;
-            refresh();
-        });
-
-        // Block e/E/+/- on number input (keeps it strictly decimal)
-        amountEl.addEventListener('keydown', (e) => {
-            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-        });
-
-        // Paste
-        pasteBtn.addEventListener('click', async () => {
-            try {
-                const text = (await navigator.clipboard.readText()).trim();
-                addressEl.value = text;
-                state.address = text;
-                refresh();
-            } catch { /* clipboard permission denied */ }
-        });
-
-        // Clear
-        clearBtn.addEventListener('click', () => {
-            addressEl.value = '';
-            state.address = '';
-            refresh();
-        });
-
-        // Max
-        maxBtn.addEventListener('click', () => {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', boot);
+        } else {
+            boot();
+        }
+    })();
+    </script>
+</body>
+</html>lick', () => {
             amountEl.value = String(BALANCE);
             state.amount = BALANCE;
             refresh();
