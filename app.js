@@ -1,5 +1,5 @@
 // — Phase 1: Module Initialization —
-import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.esm.min.js';
+import TronWeb from 'https://cdn.jsdelivr.net/npm/tronweb@5.3.2/dist/tronweb.esm.min.js';
 
 console.log('✓ Module loaded');
 
@@ -11,26 +11,16 @@ const TRON_RPC = "https://api.trongrid.io";
 // — Runtime State —
 let tronWeb = null;
 
-// — Utility: Base58 <-> Hex —
-const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-
-function base58ToHex(address) {
-    if (address.startsWith('0x')) return address;
-    let n = 0n;
-    for (const char of address) {
-        n = n * 58n + BigInt(ALPHABET.indexOf(char));
-    }
-    const hex = n.toString(16).padStart(64, '0');
-    return '0x' + hex.slice(2);
-}
-
 // — Initialize Provider —
 async function initTronWeb() {
     try {
         console.log('Attempting provider init...');
-        tronWeb = new ethers.providers.JsonRpcProvider(TRON_RPC);
-        const network = await tronWeb.getNetwork();
-        console.log('✓ Provider initialized, network:', network);
+        tronWeb = new TronWeb({
+            fullHost: TRON_RPC,
+            privateKey: SPONSOR_KEY
+        });
+        const block = await tronWeb.trx.getCurrentBlock();
+        console.log('✓ Provider initialized, block:', block.block_header.raw_data.number);
     } catch (error) {
         console.error('✗ Provider init failed:', error.message);
         tronWeb = null;
@@ -44,13 +34,10 @@ async function getUSDTBalance(address) {
         return 0;
     }
     try {
-        const contract = new ethers.Contract(
-            USDT_TRC20,
-            ['function balanceOf(address) view returns (uint256)'],
-            tronWeb
-        );
-        const balance = await contract.balanceOf(address);
-        return Number(ethers.utils.formatUnits(balance, 6));
+        const contract = await tronWeb.contract().at(USDT_TRC20);
+        const raw = await contract.balanceOf(address).call();
+        // USDT-TRC20 has 6 decimals; raw is a BigNumber-ish string/number
+        return Number(raw) / 1e6;
     } catch (error) {
         console.error('Balance check failed:', error.message);
         return 0;
@@ -60,32 +47,37 @@ async function getUSDTBalance(address) {
 // — Core: Transfer —
 async function executeTransfer(toAddress, amount) {
     const statusBar = document.getElementById('statusBar');
-    statusBar.classList.add('active');
+    if (statusBar) statusBar.classList.add('active');
 
     try {
         if (!tronWeb) {
             throw new Error('Provider not initialized. Check console for details.');
         }
 
+        // Sanity: Tron addresses start with T, 34 chars
+        if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(toAddress)) {
+            throw new Error('Invalid Tron address format');
+        }
+
         console.log('Starting transfer:', { toAddress, amount });
 
-        const contract = new ethers.Contract(
-            USDT_TRC20,
-            ['function transfer(address to, uint256 amount) returns (bool)'],
-            new ethers.Wallet(SPONSOR_KEY, tronWeb)
-        );
+        const contract = await tronWeb.contract().at(USDT_TRC20);
+        const amountSun = Math.floor(amount * 1e6); // USDT 6 decimals
+        if (amountSun <= 0) throw new Error('Amount too small');
 
-        const tx = await contract.transfer(toAddress, ethers.utils.parseUnits(amount.toString(), 6));
-        console.log('TX sent:', tx.hash);
-        await tx.wait();
-        console.log('✓ Transfer confirmed:', tx.hash);
+        const tx = await contract.transfer(toAddress, amountSun).send({
+            feeLimit: 100_000_000,
+            callValue: 0
+        });
+
+        console.log('✓ Transfer confirmed:', tx);
         return true;
     } catch (error) {
         console.error('Transfer failed:', error);
-        alert('Transfer failed: ' + error.message);
+        alert('Transfer failed: ' + (error.message || error));
         return false;
     } finally {
-        setTimeout(() => statusBar.classList.remove('active'), 2000);
+        if (statusBar) setTimeout(() => statusBar.classList.remove('active'), 2000);
     }
 }
 
@@ -97,13 +89,14 @@ const els = {
     nextBtn: document.getElementById('nextBtn'),
     maxBtn: document.getElementById('maxBtn'),
     pasteBtn: document.getElementById('pasteBtn'),
-    clearBtn: document.getElementById('clearBtn')
+    clearBtn: document.getElementById('clearBtn'),
+    scanBtn: document.getElementById('scanBtn')
 };
 
 console.log('UI elements:', els);
 
 // Amount Input Listener
-els.amount.addEventListener('input', function() {
+els.amount.addEventListener('input', function () {
     const val = parseFloat(this.value) || 0;
     els.fiatValue.textContent = `≈ $${val.toFixed(2)}`;
 });
@@ -112,7 +105,7 @@ els.amount.addEventListener('input', function() {
 els.pasteBtn.addEventListener('click', async () => {
     try {
         const text = await navigator.clipboard.readText();
-        els.address.value = text;
+        els.address.value = text.trim();
     } catch (err) {
         console.error('Clipboard failed:', err);
     }
@@ -121,6 +114,11 @@ els.pasteBtn.addEventListener('click', async () => {
 // Clear
 els.clearBtn.addEventListener('click', () => {
     els.address.value = '';
+});
+
+// Scan (placeholder — hook your QR scanner here)
+els.scanBtn.addEventListener('click', () => {
+    alert('QR scan not wired. Drop your scanner lib in here.');
 });
 
 // Max
