@@ -50,10 +50,11 @@
         }
         .status-bar.active {
             background: linear-gradient(90deg, var(--tron-orange), var(--blue-primary));
+            background-size: 40px 4px;
             animation: slide 2s infinite ease-in-out;
         }
         @keyframes slide {
-            0% { background-position: 0 0; }
+            0%   { background-position: 0 0; }
             100% { background-position: 40px 0; }
         }
 
@@ -63,9 +64,7 @@
             overflow-y: auto;
         }
 
-        .form-group {
-            margin-bottom: 24px;
-        }
+        .form-group { margin-bottom: 24px; }
 
         .label {
             font-size: 14px;
@@ -95,11 +94,7 @@
         }
         .address-input::placeholder { color: #848e9c; font-family: 'Inter', sans-serif; }
 
-        .action-group {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+        .action-group { display: flex; align-items: center; gap: 12px; }
 
         .btn-text {
             background: none;
@@ -167,11 +162,7 @@
             margin: 0;
         }
 
-        .amount-right {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
+        .amount-right { display: flex; align-items: center; gap: 16px; }
 
         .currency-label {
             font-size: 16px;
@@ -186,9 +177,7 @@
             display: block;
         }
 
-        .footer {
-            padding: 16px 20px 24px;
-        }
+        .footer { padding: 16px 20px 24px; }
 
         .next-btn {
             width: 100%;
@@ -200,10 +189,11 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: opacity 0.2s, background-color 0.2s;
         }
-        .next-btn:hover { opacity: 0.9; }
+        .next-btn:hover:not(:disabled) { opacity: 0.9; }
         .next-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .next-btn.ready { background-color: var(--blue-primary); }
     </style>
 </head>
 <body>
@@ -212,13 +202,13 @@
 
     <div class="content">
         <div class="form-group">
-            <label class="label">Address or Domain Name</label>
+            <label class="label" for="address">Address or Domain Name</label>
             <div class="input-row">
-                <input type="text" class="address-input" id="address" placeholder="Enter Tron (TRX) address" value="TWd2zR4V1dFvJbXJZv3zQy4Xz5Zy6Zy7Z8">
+                <input type="text" class="address-input" id="address" placeholder="Enter Tron (TRX) address" value="TWd2zR4V1dFvJbXJZv3zQy4Xz5Zy6Zy7Z8" autocomplete="off" spellcheck="false">
                 <div class="action-group">
-                    <button type="button" class="btn-icon" id="clearBtn"></button>
+                    <button type="button" class="btn-icon" id="clearBtn">✕</button>
                     <button type="button" class="btn-text" id="pasteBtn">Paste</button>
-                    <button type="button" class="btn-icon"></button>
+                    <button type="button" class="btn-icon">▣</button>
                 </div>
             </div>
         </div>
@@ -233,9 +223,9 @@
         </div>
 
         <div class="form-group">
-            <label class="label">Amount</label>
+            <label class="label" for="amount">Amount</label>
             <div class="amount-row">
-                <input type="number" class="amount-input" id="amount" placeholder="0" step="0.000001" min="0">
+                <input type="number" class="amount-input" id="amount" placeholder="0" step="0.000001" min="0" inputmode="decimal" autocomplete="off">
                 <div class="amount-right">
                     <span class="currency-label">USDT</span>
                     <button type="button" class="btn-text" id="maxBtn">Max</button>
@@ -246,7 +236,7 @@
     </div>
 
     <div class="footer">
-        <button type="button" class="next-btn" id="nextBtn">Next</button>
+        <button type="button" class="next-btn" id="nextBtn" disabled>Next</button>
     </div>
 
     <script>
@@ -268,7 +258,9 @@
 
             function refresh() {
                 var amt = parseFloat(amountEl.value) || 0;
-                nextBtn.disabled = !(addressEl.value.trim().length > 0 && amt > 0);
+                var ready = addressEl.value.trim().length > 0 && amt > 0;
+                nextBtn.disabled = !ready;
+                nextBtn.classList.toggle('ready', ready);
                 fiatEl.textContent = '\u2248 $' + (amt * PRICE_USD).toFixed(2);
             }
 
@@ -309,22 +301,6 @@
             boot();
         }
     })();
-    </script>
-</body>
-</html>lick', () => {
-            amountEl.value = String(BALANCE);
-            state.amount = BALANCE;
-            refresh();
-        });
-
-        // Submit
-        nextBtn.addEventListener('click', () => {
-            if (nextBtn.disabled) return;
-            statusBar.classList.add('active');
-            // hand off to next screen / signer here
-        });
-
-        refresh();
     </script>
 </body>
 </html>
