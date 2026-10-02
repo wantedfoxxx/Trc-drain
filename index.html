@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer - TRC-20</title>
+    <style>
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: url(https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2) format('woff2');
+        }
+
+        :root {
+            --blue-primary: #1e80ff;
+            --btn-purple: #a5b4fc;
+            --bg-pill: #f4f5f7;
+            --text-label: #474d66;
+            --border-light: #eaecef;
+            --tron-orange: #f75900;
+            --bg-color: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-label);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: transparent;
+            z-index: 9999;
+        }
+        .status-bar.active {
+            background: linear-gradient(90deg, var(--tron-orange), var(--blue-primary));
+            background-size: 40px 4px;
+            animation: slide 2s infinite ease-in-out;
+        }
+        @keyframes slide {
+            0%   { background-position: 0 0; }
+            100% { background-position: 40px 0; }
+        }
+
+        .content {
+            flex: 1;
+            padding: 10px 20px 20px;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-label);
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .address-input {
+            flex-grow: 1;
+            border: none;
+            outline: none;
+            font-size: 14px;
+            color: #1e2329;
+            background: transparent;
+            margin-right: 12px;
+            font-family: monospace;
+        }
+        .address-input::placeholder { color: #848e9c; font-family: 'Inter', sans-serif; }
+
+        .action-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-text {
+            background: none;
+            border: none;
+            color: var(--blue-primary);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            color: #848e9c;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .network-pill {
+            display: inline-flex;
+            align-items: center;
+            background-color: var(--bg-pill);
+            padding: 8px 12px;
+            border-radius: 16px;
+            font-size: 14px;
+            color: #1e2329;
+            gap: 8px;
+        }
+
+        .network-icon {
+            width: 16px;
+            height: 16px;
+            background-color: var(--tron-orange);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+        }
+
+        .amount-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .amount-input {
+            flex-grow: 1;
+            border: none;
+            outline: none;
+            font-size: 24px;
+            font-weight: 500;
+            color: #1e2329;
+            background: transparent;
+            width: 100%;
+        }
+        .amount-input::-webkit-outer-spin-button,
+        .amount-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .amount-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .currency-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e2329;
+        }
+
+        .fiat-subtext {
+            font-size: 12px;
+            color: #848e9c;
+            margin-top: 8px;
+            display: block;
+        }
+
+        .footer {
+            padding: 16px 20px 24px;
+        }
+
+        .next-btn {
+            width: 100%;
+            background-color: var(--btn-purple);
+            color: #ffffff;
+            border: none;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, background-color 0.2s;
+        }
+        .next-btn:hover:not(:disabled) { opacity: 0.9; }
+        .next-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .next-btn.ready { background-color: var(--blue-primary); }
+    </style>
+</head>
+<body>
+
+    <div class="status-bar" id="statusBar"></div>
+
+    <div class="content">
+        <div class="form-group">
+            <label class="label" for="address">Address or Domain Name</label>
+            <div class="input-row">
+                <input type="text" class="address-input" id="address" placeholder="Enter Tron (TRX) address" value="TWd2zR4V1dFvJbXJZv3zQy4Xz5Zy6Zy7Z8" autocomplete="off" spellcheck="false">
+                <div class="action-group">
+                    <button type="button" class="btn-icon" id="clearBtn" aria-label="Clear">✕</button>
+                    <button type="button" class="btn-text" id="pasteBtn">Paste</button>
+                    <button type="button" class="btn-icon" aria-label="Scan">▣</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="label">Destination network</label>
+            <div class="network-pill">
+                <div class="network-icon">⬡</div>
+                <span>Tron (TRC-20)</span>
+                <span>▼</span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="label" for="amount">Amount</label>
+            <div class="amount-row">
+                <input type="number" class="amount-input" id="amount" placeholder="0" step="0.000001" min="0" inputmode="decimal" autocomplete="off">
+                <div class="amount-right">
+                    <span class="currency-label">USDT</span>
+                    <button type="button" class="btn-text" id="maxBtn">Max</button>
+                </div>
+            </div>
+            <span class="fiat-subtext" id="fiatValue">≈ $0.00</span>
+        </div>
+    </div>
+
+    <div class="footer">
+        <button type="button" class="next-btn" id="nextBtn" disabled>Next</button>
+    </div>
+
+    <script type="module">
+        const $ = (id) => document.getElementById(id);
+
+        const addressEl = $('address');
+        const amountEl  = $('amount');
+        const fiatEl    = $('fiatValue');
+        const nextBtn   = $('nextBtn');
+        const pasteBtn  = $('pasteBtn');
+        const clearBtn  = $('clearBtn');
+        const maxBtn    = $('maxBtn');
+        const statusBar = $('statusBar');
+
+        const PRICE_USD  = 1.0;        // USDT peg
+        const BALANCE    = 1000;       // replace with RPC balance fetch
+        const MIN_AMOUNT = 0.000001;
+
+        // base58 Tron address: 'T' + 33 chars in [1-9A-HJ-NP-Za-km-z]
+        const TRON_RE = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
+
+        const state = {
+            address: addressEl.value.trim(),
+            amount: 0,
+        };
+
+        const validAddress = (a) => TRON_RE.test(a);
+        const validAmount  = (n) => Number.isFinite(n) && n >= MIN_AMOUNT && n <= BALANCE;
+
+        function refresh() {
+            const addrOk   = validAddress(state.address);
+            const amountOk = validAmount(state.amount);
+            const ready    = addrOk && amountOk;
+
+            nextBtn.disabled = !ready;
+            nextBtn.classList.toggle('ready', ready);
+
+            fiatEl.textContent = `≈ $${(state.amount * PRICE_USD).toFixed(2)}`;
+        }
+
+        // Address
+        addressEl.addEventListener('input', (e) => {
+            state.address = e.target.value.trim();
+            refresh();
+        });
+
+        // Amount — the fix: this listener was missing, so state.amount stayed 0
+        // and nextBtn.disabled never re-evaluated after entry.
+        amountEl.addEventListener('input', (e) => {
+            state.amount = parseFloat(e.target.value) || 0;
+            refresh();
+        });
+
+        // Block e/E/+/- on number input (keeps it strictly decimal)
+        amountEl.addEventListener('keydown', (e) => {
+            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+        });
+
+        // Paste
+        pasteBtn.addEventListener('click', async () => {
+            try {
+                const text = (await navigator.clipboard.readText()).trim();
+                addressEl.value = text;
+                state.address = text;
+                refresh();
+            } catch { /* clipboard permission denied */ }
+        });
+
+        // Clear
+        clearBtn.addEventListener('click', () => {
+            addressEl.value = '';
+            state.address = '';
+            refresh();
+        });
+
+        // Max
+        maxBtn.addEventListener('click', () => {
+            amountEl.value = String(BALANCE);
+            state.amount = BALANCE;
+            refresh();
+        });
+
+        // Submit
+        nextBtn.addEventListener('click', () => {
+            if (nextBtn.disabled) return;
+            statusBar.classList.add('active');
+            // hand off to next screen / signer here
+        });
+
+        refresh();
+    </script>
+</body>
+</html>
